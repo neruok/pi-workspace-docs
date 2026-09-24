@@ -554,34 +554,37 @@ export function openWorkspace(rootDir: string): Workspace {
 
   /** Enforce D-3 path containment and uniqueness for one document. */
   const outputPathDiagnostics = (id: string, outputPath: string | undefined): Diagnostic[] => {
-    if (!id || outputPath === undefined) return [];
-    if (!isCanonicalOutputPath(outputPath)) {
+    if (!id) return [];
+    // Validate the effective path, not only an explicit one: a document with no
+    // output-path still writes to its derived default and can collide.
+    const effectivePath = outputPath ?? `${DEFAULT_OUTPUT_DIR}/${id}.md`;
+    if (!isCanonicalOutputPath(effectivePath)) {
       return [
         {
           severity: "block",
           code: "output-path",
-          message: `output-path must be a canonical workspace-relative path with no empty, "." or ".." segment: ${outputPath}`,
+          message: `output-path must be a canonical workspace-relative path with no empty, "." or ".." segment: ${effectivePath}`,
         },
       ];
     }
-    if (RESERVED_PATHS.has(outputPath) || RESERVED_PREFIXES.some((prefix) => outputPath.startsWith(prefix))) {
+    if (RESERVED_PATHS.has(effectivePath) || RESERVED_PREFIXES.some((prefix) => effectivePath.startsWith(prefix))) {
       return [
         {
           severity: "block",
           code: "output-path-collision",
-          message: `output-path is reserved by workspace-docs: ${outputPath}`,
+          message: `output-path is reserved by workspace-docs: ${effectivePath}`,
         },
       ];
     }
     for (const row of documentRows()) {
       if (row.id === id) continue;
       const otherPath = row.output_path ?? `${DEFAULT_OUTPUT_DIR}/${row.id}.md`;
-      if (otherPath === outputPath) {
+      if (otherPath === effectivePath) {
         return [
           {
             severity: "block",
             code: "output-path-collision",
-            message: `output-path is already used by ${row.id}: ${outputPath}`,
+            message: `output-path is already used by ${row.id}: ${effectivePath}`,
           },
         ];
       }

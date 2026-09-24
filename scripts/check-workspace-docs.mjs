@@ -563,6 +563,43 @@ try {
     ws.close();
   });
 
+  await check("AC-29", "a default output path does not collide with an explicit path", () => {
+    const ws = workspace("ac29-default-reverse");
+    const alpha = ws.createDocument({
+      id: "alpha",
+      title: "Alpha",
+      type: "specification",
+      outputPath: ".pi/workspace-docs/out/beta.md",
+    });
+    assert.equal(alpha.status, "committed", "an explicit path may claim a future default");
+
+    const collide = ws.createDocument({ id: "beta", title: "Beta", type: "specification" });
+    assert.equal(collide.status, "rejected", "a default path colliding with an explicit path is rejected");
+    assert.ok(
+      collide.diagnostics.some((diagnostic) => diagnostic.code === "output-path-collision"),
+      "the reverse collision reports output-path-collision",
+    );
+    ws.close();
+  });
+
+  await check("AC-29", "reverting to a colliding default path is rejected", () => {
+    const ws = workspace("ac29-default-revert");
+    ws.createDocument({ id: "beta", title: "Beta", type: "specification", outputPath: "docs/beta.md" });
+    ws.createDocument({
+      id: "alpha",
+      title: "Alpha",
+      type: "specification",
+      outputPath: ".pi/workspace-docs/out/beta.md",
+    });
+
+    const reverted = ws.checkout("beta").text.replace(/^output-path = .*\n/m, "");
+    assert.ok(
+      ws.previewImport(reverted).diagnostics.some((diagnostic) => diagnostic.code === "output-path-collision"),
+      "reverting beta to its default collides with alpha's explicit path",
+    );
+    ws.close();
+  });
+
   await check("AC-29", "output paths reject Windows separators and absolute drives", () => {
     const ws = workspace("ac29-windows");
     ws.createDocument({ id: "alpha", title: "Alpha", type: "specification" });
