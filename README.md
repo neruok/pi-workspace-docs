@@ -59,6 +59,18 @@ The candidate grammar is version 1. The store schema is version 1.
 Structured tools never commit. `docs_create` adds a document directly;
 after that, only `docs_import` with a preview token writes to the store.
 
+## Skills
+
+The package declares two skills under `pi.skills`:
+
+- `workspace-docs-authoring` — the checkout → preview → import workflow,
+  structured tool use, deletion order, and conflict recovery.
+- `workspace-docs-review` — separating structural validation from semantic
+  judgment and keeping unresolved policy visible.
+
+Each is a directory with a `SKILL.md`. Installing the package makes them
+available to the profile's skill list.
+
 ## Requirements
 
 - The Pi coding agent (`@earendil-works/pi-coding-agent`).
@@ -87,9 +99,10 @@ npm install
 | --- | --- |
 | `workspace-docs.ts` | Pi extension entry point. Registers the `docs_*` tools and the publication guard. |
 | `lib/workspace-docs/` | Pure core. Imports no Pi API, so it runs under plain Node. |
-| `scripts/` | Acceptance, tool-boundary, and publication-guard checks. |
+| `scripts/` | Acceptance, tool-boundary, publication-guard, and skill checks. |
 | `scripts/fixtures/workspace-docs/` | Import fixtures used by the acceptance checks. |
-| `package.json` | Package manifest. `pi.extensions` points at `workspace-docs.ts`. |
+| `skills/` | The `workspace-docs-authoring` and `workspace-docs-review` skills, declared under `pi.skills`. |
+| `package.json` | Package manifest. Declares the extension (`pi.extensions`) and skills (`pi.skills`). |
 
 The pure core separates grammar (`grammar.ts`), the store, revisions, and
 compilation (`store.ts`), structured editing (`edit.ts`), rendering

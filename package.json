@@ -11,10 +11,13 @@
   "pi": {
     "extensions": [
       "./workspace-docs.ts"
+    ],
+    "skills": [
+      "./skills"
     ]
   },
   "scripts": {
-    "check": "node scripts/check-workspace-docs.mjs && node scripts/check-workspace-docs-tools.mjs && node scripts/check-workspace-docs-extension.mjs",
+    "check": "node scripts/check-workspace-docs.mjs && node scripts/check-workspace-docs-tools.mjs && node scripts/check-workspace-docs-extension.mjs && node scripts/check-workspace-docs-skills.mjs",
     "typecheck": "tsc --noEmit --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target esnext --strict --skipLibCheck lib/workspace-docs/*.ts"
   },
   "dependencies": {
