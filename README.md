@@ -61,20 +61,24 @@ after that, only `docs_import` with a preview token writes to the store.
 
 ## Skills
 
-The package declares two skills under `pi.skills`:
+The package declares four skills under `pi.skills`:
 
 - `workspace-docs-authoring` — the checkout → preview → import workflow,
   structured tool use, deletion order, and conflict recovery.
 - `workspace-docs-review` — separating structural validation from semantic
   judgment and keeping unresolved policy visible.
+- `workspace-docs-specifications` — requirement semantics: unambiguous,
+  measurable, testable behavior.
+- `workspace-docs-prose` — rewriting prose into ASD-STE100 Simplified Technical
+  English.
 
-Each is a directory with a `SKILL.md`. Installing the package makes them
-available to the profile's skill list.
+Each is a directory with a `SKILL.md`; `workspace-docs-prose` also ships
+`ste-lint.py`. Installing the package makes all four available to the profile's
+skill list.
 
-The authoring skill points at two optional companion skills,
-`write-deterministic-specifications` and `ste-writing`, for requirement
-semantics and prose style. They are not bundled; use them when the workspace
-already provides them.
+If a profile already provides these skills (the `new-coder` profile does), Pi
+keeps the first discovered copy and warns on each duplicate name. Remove the
+profile copies when this package becomes the provider.
 
 ## Requirements
 
@@ -135,7 +139,7 @@ Then run `npm install` in the package directory so `js-toml` resolves for
 | `lib/workspace-docs/` | Pure core. Imports no Pi API, so it runs under plain Node. |
 | `scripts/` | Acceptance, tool-boundary, publication-guard, and skill checks. |
 | `scripts/fixtures/workspace-docs/` | Import fixtures used by the acceptance checks. |
-| `skills/` | The `workspace-docs-authoring` and `workspace-docs-review` skills, declared under `pi.skills`. |
+| `skills/` | The four bundled skills, declared under `pi.skills`. |
 | `package.json` | Package manifest. Declares the extension (`pi.extensions`) and skills (`pi.skills`). |
 
 The pure core separates grammar (`grammar.ts`), the store, revisions, and

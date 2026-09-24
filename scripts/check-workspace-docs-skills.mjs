@@ -95,6 +95,12 @@ try {
     assert.ok(/review/i.test(review.body), "review guidance is about review");
   });
 
+  check("AC-14", "the bundled companion skills exist with matching names", () => {
+    for (const name of ["workspace-docs-specifications", "workspace-docs-prose"]) {
+      assert.equal(skill(name).meta.name, name, `${name}: frontmatter name matches the directory`);
+    }
+  });
+
   check("AC-14", "the skills use the extension tools and establish no second store", () => {
     const authoring = skill(AUTHORING);
     const review = skill(REVIEW);
