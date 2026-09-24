@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The workspace documentation extension: store, grammar, metadata, compiler, publisher, and the docs_* tools.",
+  "license": "MIT",
   "keywords": [
     "pi-package"
   ],

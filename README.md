@@ -53,3 +53,7 @@ documentation store. The tool-boundary and publication-guard checks copy the
 extension and core into a temporary directory and resolve the Pi package from
 the global install, so a global `@earendil-works/pi-coding-agent` must be
 present.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
