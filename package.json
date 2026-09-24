@@ -1,10 +1,17 @@
 {
-  "name": "workspace-docs",
-  "version": "0.0.0",
-  "private": true,
+  "name": "@neruok/pi-workspace-docs",
+  "version": "0.1.0",
   "type": "module",
   "description": "The workspace documentation extension: store, grammar, metadata, compiler, publisher, and the docs_* tools.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neruok/pi-workspace-docs.git"
+  },
+  "homepage": "https://github.com/neruok/pi-workspace-docs#readme",
+  "bugs": {
+    "url": "https://github.com/neruok/pi-workspace-docs/issues"
+  },
   "keywords": [
     "pi-package"
   ],
@@ -16,15 +23,41 @@
       "./skills"
     ]
   },
+  "files": [
+    "workspace-docs.ts",
+    "lib",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "check": "node scripts/check-workspace-docs.mjs && node scripts/check-workspace-docs-tools.mjs && node scripts/check-workspace-docs-extension.mjs && node scripts/check-workspace-docs-skills.mjs",
-    "typecheck": "tsc --noEmit --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target esnext --strict --skipLibCheck lib/workspace-docs/*.ts"
+    "typecheck": "tsc --noEmit --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target esnext --strict --skipLibCheck lib/workspace-docs/*.ts",
+    "prepublishOnly": "npm run typecheck"
+  },
+  "engines": {
+    "node": ">=22.18"
   },
   "dependencies": {
     "js-toml": "2.0.1"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    },
+    "typebox": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^24.13.6",
     "typescript": "^5.9.3"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
