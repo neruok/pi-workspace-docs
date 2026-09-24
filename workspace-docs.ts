@@ -1,10 +1,10 @@
 /**
  * workspace-docs — Pi extension.
  *
- * Wraps the pure core in `extensions/lib/workspace-docs/` (D-14). It installs
- * the publication guard, so a built-in `write` or `edit` that targets a
- * generated artifact is blocked with checkout and import guidance (D-12,
- * REQ-EDIT-3), and it exposes ten tools over the store.
+ * Wraps the pure core in `lib/workspace-docs/` (D-14). It installs the
+ * publication guard, so a built-in `write` or `edit` that targets a generated
+ * artifact is blocked with checkout and import guidance (D-12, REQ-EDIT-3),
+ * and it exposes the `docs_*` tools over the store.
  *
  * Every tool returns `{ ok: true, ... }` or `{ ok: false, error: { kind } }`.
  * Domain failure kinds are `invalid-argument`, `not-found`, `checkout-conflict`,

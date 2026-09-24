@@ -3,12 +3,24 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The workspace documentation extension: store, grammar, metadata, compiler, publisher, and the ten docs_* tools.",
-  "keywords": ["pi-package"],
+  "description": "The workspace documentation extension: store, grammar, metadata, compiler, publisher, and the docs_* tools.",
+  "keywords": [
+    "pi-package"
+  ],
   "pi": {
-    "extensions": ["./workspace-docs.ts"]
+    "extensions": [
+      "./workspace-docs.ts"
+    ]
+  },
+  "scripts": {
+    "check": "node scripts/check-workspace-docs.mjs && node scripts/check-workspace-docs-tools.mjs && node scripts/check-workspace-docs-extension.mjs",
+    "typecheck": "tsc --noEmit --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target esnext --strict --skipLibCheck lib/workspace-docs/*.ts"
   },
   "dependencies": {
     "js-toml": "2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "typescript": "^5.9.3"
   }
 }

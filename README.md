@@ -14,6 +14,8 @@ extracted from the `new-coder` Pi profile.
 | --- | --- |
 | `workspace-docs.ts` | Pi extension entry point. Registers the `docs_*` tools and the publication guard. |
 | `lib/workspace-docs/` | Pure core. Imports no Pi API, so it runs under plain Node. |
+| `scripts/` | Acceptance, tool-boundary, and publication-guard checks. |
+| `scripts/fixtures/workspace-docs/` | Import fixtures used by the acceptance checks. |
 | `package.json` | Package manifest. `pi.extensions` points at `workspace-docs.ts`. |
 
 The pure core separates grammar (`grammar.ts`), store and revisions
@@ -23,7 +25,7 @@ terms (`terms.ts`), and the publication guard (`guard.ts`).
 
 ## Install into a Pi profile
 
-Add the pack to the profile `settings.json`:
+Add the repository path to the profile `settings.json`:
 
 ```json
 {
@@ -31,7 +33,7 @@ Add the pack to the profile `settings.json`:
 }
 ```
 
-Then run `npm install` here so `js-toml` resolves for the core:
+Then install dependencies:
 
 ```sh
 npm install
@@ -41,11 +43,13 @@ npm install
 
 ```sh
 npm install
-npx tsc --noEmit --allowImportingTsExtensions --module nodenext \
-  --moduleResolution nodenext --target esnext --strict --skipLibCheck \
-  lib/workspace-docs/*.ts
+npm run typecheck   # tsc --strict over the pure core
+npm run check       # acceptance, tool-boundary, and guard checks
 ```
 
-The type-check above needs the Pi package typings on the module resolution
-path. The `new-coder` profile runs the acceptance checks for this core in
-`scripts/check-workspace-docs.mjs`.
+The acceptance checks describe criteria from
+`docs/workspace-documentation-spec.md` in the `new-coder` profile's
+documentation store. The tool-boundary and publication-guard checks copy the
+extension and core into a temporary directory and resolve the Pi package from
+the global install, so a global `@earendil-works/pi-coding-agent` must be
+present.
