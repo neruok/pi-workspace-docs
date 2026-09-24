@@ -1,0 +1,14 @@
+{
+  "name": "workspace-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The workspace documentation extension: store, grammar, metadata, compiler, publisher, and the ten docs_* tools.",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./workspace-docs.ts"]
+  },
+  "dependencies": {
+    "js-toml": "2.0.1"
+  }
+}
