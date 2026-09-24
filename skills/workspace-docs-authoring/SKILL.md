@@ -7,7 +7,10 @@ description: Author and change documents in the workspace documentation store th
 
 Author through the extension. The store under `.pi/workspace-docs/` is canonical. A Markdown candidate is the only import path into it.
 
-Use `write-deterministic-specifications` for requirement semantics and `ste-writing` for prose. This skill covers the store workflow.
+This skill covers the store workflow. Requirement semantics and prose style are
+separate concerns: if the workspace provides the `write-deterministic-specifications`
+or `ste-writing` skills, use them for those. They are not part of this package
+and may be absent.
 
 ## Workflow
 

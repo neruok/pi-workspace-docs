@@ -71,6 +71,11 @@ The package declares two skills under `pi.skills`:
 Each is a directory with a `SKILL.md`. Installing the package makes them
 available to the profile's skill list.
 
+The authoring skill points at two optional companion skills,
+`write-deterministic-specifications` and `ste-writing`, for requirement
+semantics and prose style. They are not bundled; use them when the workspace
+already provides them.
+
 ## Requirements
 
 - The Pi coding agent (`@earendil-works/pi-coding-agent`).
