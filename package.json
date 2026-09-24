@@ -33,10 +33,11 @@
   "scripts": {
     "check": "node scripts/check-workspace-docs.mjs && node scripts/check-workspace-docs-tools.mjs && node scripts/check-workspace-docs-extension.mjs && node scripts/check-workspace-docs-skills.mjs",
     "typecheck": "tsc --noEmit --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target esnext --strict --skipLibCheck lib/workspace-docs/*.ts",
-    "prepublishOnly": "npm run typecheck"
+    "verify": "npm run typecheck && npm run check",
+    "prepublishOnly": "npm run verify"
   },
   "engines": {
-    "node": ">=22.18"
+    "node": ">=22.19.0"
   },
   "dependencies": {
     "js-toml": "2.0.1"

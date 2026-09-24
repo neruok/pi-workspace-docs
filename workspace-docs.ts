@@ -6,10 +6,16 @@
  * artifact is blocked with checkout and import guidance (D-12, REQ-EDIT-3),
  * and it exposes the `docs_*` tools over the store.
  *
- * Every tool returns `{ ok: true, ... }` or `{ ok: false, error: { kind } }`.
- * Domain failure kinds are `invalid-argument`, `not-found`, `checkout-conflict`,
- * and `rejected`; `unavailable` covers an unreadable store and file I/O, and
- * `internal` covers anything unexpected.
+ * Tools return one of two shapes:
+ *
+ * - `{ ok: false, error: { kind } }` — the operation itself was invalid or
+ *   unavailable, so no domain result exists. Domain kinds are
+ *   `invalid-argument`, `not-found`, `checkout-conflict`, and `rejected`;
+ *   `unavailable` covers an unreadable store and file I/O, and `internal`
+ *   covers anything unexpected.
+ * - `{ ok: true, status: ... }` — the operation ran and produced a domain
+ *   result. A `rejected` status (for example, a candidate changed after its
+ *   preview) is a valid transaction outcome, not a tool failure.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";

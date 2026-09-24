@@ -12,7 +12,7 @@
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { parseCandidate, renderCandidate, renderFrontMatter, renderGeneratedRegion } from "./grammar.ts";
 import { EXPORT_PATH, renderExport } from "./export.ts";
@@ -533,14 +533,29 @@ export function openWorkspace(rootDir: string): Workspace {
     return diagnostics;
   };
 
+  /**
+   * True when a path is canonical, workspace-relative, and stays inside the
+   * workspace on every platform. Reject `\` explicitly: on Windows it is a
+   * separator, but `split("/")` would not see it as an escaping segment.
+   */
+  const isCanonicalOutputPath = (outputPath: string): boolean => {
+    if (
+      outputPath.length === 0 ||
+      outputPath.includes("\\") ||
+      outputPath.startsWith("/") ||
+      isAbsolute(outputPath) ||
+      outputPath.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
+    ) {
+      return false;
+    }
+    const rel = relative(rootDir, resolve(rootDir, outputPath)).replaceAll("\\", "/");
+    return rel.length > 0 && rel !== ".." && !rel.startsWith("../");
+  };
+
   /** Enforce D-3 path containment and uniqueness for one document. */
   const outputPathDiagnostics = (id: string, outputPath: string | undefined): Diagnostic[] => {
     if (!id || outputPath === undefined) return [];
-    if (
-      outputPath.length === 0 ||
-      outputPath.startsWith("/") ||
-      outputPath.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
-    ) {
+    if (!isCanonicalOutputPath(outputPath)) {
       return [
         {
           severity: "block",
@@ -560,7 +575,7 @@ export function openWorkspace(rootDir: string): Workspace {
     }
     for (const row of documentRows()) {
       if (row.id === id) continue;
-      const otherPath = row.output_path ?? `${DEFAULT_OUTPUT_DIR}/${row.id}`;
+      const otherPath = row.output_path ?? `${DEFAULT_OUTPUT_DIR}/${row.id}.md`;
       if (otherPath === outputPath) {
         return [
           {
@@ -709,6 +724,11 @@ export function openWorkspace(rootDir: string): Workspace {
     files.push({ path: INDEX_FILE, content: renderIndex(rows, paths) });
     files.push({ path: EXPORT_PATH, content: renderExport(storeRevision(), exportDocuments(rows)) });
     files.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
+    const seenPaths = new Set<string>();
+    for (const file of files) {
+      if (seenPaths.has(file.path)) throw new Error(`duplicate compiled output path: ${file.path}`);
+      seenPaths.add(file.path);
+    }
     return { storeRevision: storeRevision(), files };
   };
 

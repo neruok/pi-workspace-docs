@@ -544,6 +544,68 @@ try {
     ws.close();
   });
 
+  await check("AC-29", "an explicit output path does not collide with a default", () => {
+    const ws = workspace("ac29-default");
+    ws.createDocument({ id: "alpha", title: "Alpha", type: "specification" });
+    const collide = ws.createDocument({
+      id: "beta",
+      title: "Beta",
+      type: "specification",
+      outputPath: ".pi/workspace-docs/out/alpha.md",
+    });
+    assert.equal(collide.status, "rejected", "an explicit path equal to another default is rejected");
+    assert.ok(
+      collide.diagnostics.some((diagnostic) => diagnostic.code === "output-path-collision"),
+      "the default-path collision reports output-path-collision",
+    );
+    const paths = ws.compile().files.map((file) => file.path);
+    assert.equal(new Set(paths).size, paths.length, "compilation emits one file per path");
+    ws.close();
+  });
+
+  await check("AC-29", "output paths reject Windows separators and absolute drives", () => {
+    const ws = workspace("ac29-windows");
+    ws.createDocument({ id: "alpha", title: "Alpha", type: "specification" });
+    for (const [id, outputPath] of [
+      ["backslash", "..\\escape.md"],
+      ["drive", "C:\\outside.md"],
+      ["nested-backslash", "docs\\nested.md"],
+    ]) {
+      const result = ws.createDocument({ id, title: id, type: "specification", outputPath });
+      assert.equal(result.status, "rejected", `rejected: ${outputPath}`);
+      assert.ok(
+        result.diagnostics.some((diagnostic) => diagnostic.code === "output-path"),
+        `output-path diagnostic: ${outputPath}`,
+      );
+    }
+
+    const nested = ws.createDocument({
+      id: "nested-ok",
+      title: "Nested",
+      type: "specification",
+      outputPath: "docs/nested/alpha.md",
+    });
+    assert.equal(nested.status, "committed", "a nested forward-slash path is accepted");
+    ws.close();
+  });
+
+  await check("AC-29", "compilation refuses duplicate output paths from a corrupted store", () => {
+    const name = "ac29-invariant";
+    const seed = workspace(name);
+    seed.createDocument({ id: "alpha", title: "Alpha", type: "specification" });
+    seed.createDocument({ id: "beta", title: "Beta", type: "specification" });
+    seed.close();
+    seedLegacyDocument(
+      name,
+      "beta",
+      { title: "Beta", type: "specification", status: undefined, outputPath: ".pi/workspace-docs/out/alpha.md" },
+      "beta",
+    );
+    const ws = core.openWorkspace(join(scratch, name));
+    assert.throws(() => ws.compile(), /duplicate/i, "compile rejects duplicate output paths");
+    ws.close();
+  });
+
   await check("AC-6", "a shared term resolves by alias and both glossaries use the updated definition", () => {
     const ws = workspace("ac6");
     ws.createDocument({ id: "alpha", title: "Alpha", type: "specification" });

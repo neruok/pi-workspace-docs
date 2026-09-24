@@ -83,41 +83,42 @@ profile copies when this package becomes the provider.
 ## Requirements
 
 - The Pi coding agent (`@earendil-works/pi-coding-agent`).
-- Node.js 22.18 or newer. The extension is loaded by Pi; the checks run under
+- Node.js 22.19.0 or newer. The extension is loaded by Pi; the checks run under
   plain Node and use its TypeScript type stripping.
 
 ## Install
 
-Users install the package from its Git source. Pi clones it, installs the
-`js-toml` dependency, and loads the extension and the two skills.
+Users install the package from npm, or from the Git repository. Pi installs
+the `js-toml` dependency and loads the extension and the four skills.
 
 ```sh
-pi install git:github.com/neruok/pi-workspace-docs
+pi install npm:@neruok/pi-workspace-docs
 ```
 
 Add `--local` (`-l`) to write the declaration to the project settings instead
 of the personal settings. To try it for one invocation without installing:
 
 ```sh
-pi -e git:github.com/neruok/pi-workspace-docs
+pi -e npm:@neruok/pi-workspace-docs
 ```
 
-Pin a ref for a stable install. An unpinned source follows the default branch.
+To install from Git instead, pin a ref for a stable install. An unpinned
+source follows the default branch.
 
 ```sh
+pi install git:github.com/neruok/pi-workspace-docs
 pi install git:github.com/neruok/pi-workspace-docs@<tag-or-commit>
 ```
 
-You can also declare it in `settings.json` directly:
+You can also declare the package in `settings.json` directly:
 
 ```json
 {
-  "packages": ["git:github.com/neruok/pi-workspace-docs"]
+  "packages": ["npm:@neruok/pi-workspace-docs"]
 }
 ```
 
-The package is not published to npm, so `pi install git:...` is the supported
-install path. `pi update --extensions` reconciles installed packages.
+`pi update --extensions` reconciles installed packages.
 
 ### Local development
 
