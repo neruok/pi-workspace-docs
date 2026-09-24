@@ -77,21 +77,50 @@ available to the profile's skill list.
 - Node.js 22.18 or newer. The extension is loaded by Pi; the checks run under
   plain Node and use its TypeScript type stripping.
 
-## Install into a Pi profile
+## Install
 
-Add the repository path to the profile `settings.json`:
+Users install the package from its Git source. Pi clones it, installs the
+`js-toml` dependency, and loads the extension and the two skills.
+
+```sh
+pi install git:github.com/neruok/pi-workspace-docs
+```
+
+Add `--local` (`-l`) to write the declaration to the project settings instead
+of the personal settings. To try it for one invocation without installing:
+
+```sh
+pi -e git:github.com/neruok/pi-workspace-docs
+```
+
+Pin a ref for a stable install. An unpinned source follows the default branch.
+
+```sh
+pi install git:github.com/neruok/pi-workspace-docs@<tag-or-commit>
+```
+
+You can also declare it in `settings.json` directly:
 
 ```json
 {
-  "packages": ["/path/to/pi-workspace-docs"]
+  "packages": ["git:github.com/neruok/pi-workspace-docs"]
 }
 ```
 
-Then install dependencies:
+The package is not published to npm, so `pi install git:...` is the supported
+install path. `pi update --extensions` reconciles installed packages.
+
+### Local development
+
+For work on the package itself, install the local directory. Pi loads it in
+place without copying:
 
 ```sh
-npm install
+pi install ./pi-workspace-docs
 ```
+
+Then run `npm install` in the package directory so `js-toml` resolves for
+`npm run check` and `npm run typecheck`.
 
 ## Layout
 
