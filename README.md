@@ -61,7 +61,7 @@ after that, only `docs_import` with a preview token writes to the store.
 
 ## Skills
 
-The package declares four skills under `pi.skills`:
+The package declares five skills under `pi.skills`:
 
 - `workspace-docs-authoring` — the checkout → preview → import workflow,
   structured tool use, deletion order, and conflict recovery.
@@ -71,9 +71,12 @@ The package declares four skills under `pi.skills`:
   measurable, testable behavior.
 - `workspace-docs-prose` — rewriting prose into ASD-STE100 Simplified Technical
   English.
+- `workspace-docs-critical-coding` — implementing and changing code against
+  stored requirements, decisions, invariants, and acceptance criteria, with
+  bounded scope and contract verification.
 
 Each is a directory with a `SKILL.md`; `workspace-docs-prose` also ships
-`ste-lint.py`. Installing the package makes all four available to the profile's
+`ste-lint.py`. Installing the package makes all five available to the profile's
 skill list.
 
 If a profile already provides these skills (the `new-coder` profile does), Pi

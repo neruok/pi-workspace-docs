@@ -43,6 +43,7 @@ const EXTENSION_TOOLS = [
 
 const AUTHORING = "workspace-docs-authoring";
 const REVIEW = "workspace-docs-review";
+const CRITICAL = "workspace-docs-critical-coding";
 
 const results = [];
 
@@ -96,7 +97,7 @@ try {
   });
 
   check("AC-14", "the bundled companion skills exist with matching names", () => {
-    for (const name of ["workspace-docs-specifications", "workspace-docs-prose"]) {
+    for (const name of ["workspace-docs-specifications", "workspace-docs-prose", CRITICAL]) {
       assert.equal(skill(name).meta.name, name, `${name}: frontmatter name matches the directory`);
     }
   });
@@ -107,6 +108,7 @@ try {
     for (const [name, contents] of [
       [AUTHORING, authoring.body],
       [REVIEW, review.body],
+      [CRITICAL, skill(CRITICAL).body],
     ]) {
       for (const tool of toolsReferenced(contents)) {
         assert.ok(EXTENSION_TOOLS.includes(tool), `${name}: unknown tool ${tool}`);
