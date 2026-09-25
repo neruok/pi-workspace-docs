@@ -1,6 +1,6 @@
 {
   "name": "@neruok/pi-workspace-docs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "The workspace documentation extension: store, grammar, metadata, compiler, publisher, and the docs_* tools.",
   "license": "MIT",
