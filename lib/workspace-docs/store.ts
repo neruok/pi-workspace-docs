@@ -28,6 +28,7 @@ import { renderBody } from "./render.ts";
 import { normalizeTermName, renderGlossary } from "./terms.ts";
 import type {
   Checkout,
+  CompileOptions,
   CompileResult,
   Diagnostic,
   DiscoveryOptions,
@@ -87,8 +88,10 @@ export interface Workspace {
   checkout(documentId: string): Checkout;
   previewImport(text: string): PreviewResult;
   importCandidate(text: string, token: string): ImportResult;
-  compile(): CompileResult;
+  compile(options?: CompileOptions): CompileResult;
   publish(options?: PublishOptions): PublishResult;
+  /** Block diagnostics for an `outputRoots` binding; empty when the binding is valid (D-20). */
+  outputRootDiagnostics(outputRoots?: Record<string, string>): Diagnostic[];
   discover(options?: DiscoveryOptions): DiscoveryResult;
   incomingReferences(target: string): IncomingReference[];
   hasTarget(target: string): boolean;
@@ -711,9 +714,129 @@ export function openWorkspace(rootDir: string): Workspace {
     }
   };
 
-  const buildCompile = (): CompileResult => {
+  const storedPath = (row: DocumentRow): string =>
+    row.output_path ?? `${DEFAULT_OUTPUT_DIR}/${row.id}.md`;
+
+  /** The path a document is produced at, given an optional bound root (D-20). */
+  const effectivePath = (row: DocumentRow, root?: string): string => {
+    const base = storedPath(row);
+    return root ? `${root}/${base}` : base;
+  };
+
+  const isDirectory = (path: string): boolean => {
+    try {
+      return statSync(path).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+
+  /**
+   * Validate an `outputRoots` binding (D-20, REQ-COMP-7). Empty when the binding
+   * is absent or valid. A mapping is rejected when it names no stored document,
+   * when the document has no explicit `output-path`, when the root is not an
+   * existing canonical directory outside the store, or when two documents would
+   * resolve to the same effective path. REQ-COMP-5 and REQ-COMP-6 apply to the
+   * effective path, so a root such as `.pi` that reaches the store is rejected.
+   */
+  const outputRootDiagnostics = (outputRoots: Record<string, string> = {}): Diagnostic[] => {
+    const entries = Object.keys(outputRoots).sort();
+    if (entries.length === 0) return [];
+    const diagnostics: Diagnostic[] = [];
     const rows = documentRows();
-    const paths = new Map(rows.map((row) => [row.id, row.output_path ?? `${DEFAULT_OUTPUT_DIR}/${row.id}.md`]));
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const roots = new Map<string, string>();
+    for (const documentId of entries) {
+      const root = outputRoots[documentId] as string;
+      const row = byId.get(documentId);
+      if (!row) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-root",
+          message: `outputRoots names no stored document: ${documentId}`,
+        });
+        continue;
+      }
+      if (!row.output_path) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-root",
+          message: `outputRoots requires an explicit output-path: ${documentId}`,
+        });
+        continue;
+      }
+      if (!isCanonicalOutputPath(root)) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-root",
+          message: `outputRoots root must be a canonical workspace-relative directory: ${root}`,
+        });
+        continue;
+      }
+      if (root === INDEX_DIR || root.startsWith(`${INDEX_DIR}/`)) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-root",
+          message: `outputRoots root is reserved by workspace-docs: ${root}`,
+        });
+        continue;
+      }
+      if (!isDirectory(join(rootDir, root))) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-root",
+          message: `outputRoots root is not an existing directory: ${root}`,
+        });
+        continue;
+      }
+      roots.set(documentId, root);
+    }
+    const produced = new Map<string, string[]>();
+    for (const row of rows) {
+      const path = effectivePath(row, roots.get(row.id));
+      produced.set(path, [...(produced.get(path) ?? []), row.id]);
+    }
+    for (const [path, ids] of produced) {
+      if (!isCanonicalOutputPath(path)) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-path",
+          message: `effective output path is not canonical: ${path}`,
+        });
+      }
+      if (RESERVED_PATHS.has(path) || RESERVED_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-path-collision",
+          message: `effective output path is reserved by workspace-docs: ${path}`,
+        });
+      }
+      if (ids.length > 1) {
+        diagnostics.push({
+          severity: "block",
+          code: "output-path-collision",
+          message: `duplicate effective output path shared by ${ids.join(", ")}: ${path}`,
+        });
+      }
+    }
+    return diagnostics;
+  };
+
+  /** Effective paths for every document, refusing a blocked binding (D-20). */
+  const effectivePaths = (
+    rows: DocumentRow[],
+    outputRoots: Record<string, string> = {},
+  ): Map<string, string> => {
+    const diagnostics = outputRootDiagnostics(outputRoots);
+    if (hasBlock(diagnostics)) {
+      throw new Error(diagnostics.map((diagnostic) => diagnostic.message).join("; "));
+    }
+    return new Map(rows.map((row) => [row.id, effectivePath(row, outputRoots[row.id])]));
+  };
+
+  const buildCompile = (options: CompileOptions = {}): CompileResult => {
+    const rows = documentRows();
+    const paths = effectivePaths(rows, options.outputRoots);
     const allTerms = termMatches();
     const files = rows.map((row) => {
       const path = paths.get(row.id) as string;
@@ -920,10 +1043,12 @@ export function openWorkspace(rootDir: string): Workspace {
 
     compile: buildCompile,
 
+    outputRootDiagnostics,
+
     publish(options: PublishOptions = {}): PublishResult {
-      const compiled = buildCompile();
+      const compiled = buildCompile({ outputRoots: options.outputRoots });
       const ids = new Map(
-        documentRows().map((row) => [row.output_path ?? `${DEFAULT_OUTPUT_DIR}/${row.id}.md`, row.id]),
+        documentRows().map((row) => [effectivePath(row, options.outputRoots?.[row.id]), row.id]),
       );
       const targets: PublishTarget[] = compiled.files.map((file) => ({
         path: file.path,

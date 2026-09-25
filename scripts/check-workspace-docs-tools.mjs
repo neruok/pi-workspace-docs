@@ -1265,6 +1265,39 @@ try {
       "the moved revision is rejected",
     );
   });
+
+  // Project-relative output roots (D-20, REQ-COMP-7): the tool forwards the
+  // map, reports effective paths, and rejects an invalid root.
+  await check("AC-85", "docs_compile accepts outputRoots and rejects an invalid root", async () => {
+    const root = join(scratch, "output-roots-tool");
+    const seed = core.openWorkspace(root);
+    seed.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    seed.close();
+    mkdirSync(join(root, "vendor", "out", "docs"), { recursive: true });
+
+    const rendered = await call("docs_compile", { outputRoots: { mapped: "vendor/out" } }, root);
+    assert.equal(rendered.ok, true);
+    assert.ok(
+      rendered.files.some((file) => file.path === "vendor/out/docs/mapped.md"),
+      "the effective path is reported",
+    );
+    assert.ok(!existsSync(join(root, "vendor", "out", "docs", "mapped.md")), "render-only writes nothing");
+
+    const published = await call("docs_compile", { outputRoots: { mapped: "vendor/out" }, publish: true }, root);
+    assert.equal(published.ok, true);
+    assert.ok(
+      published.outcomes.some((outcome) => outcome.path === "vendor/out/docs/mapped.md"),
+      "publication reports the effective path",
+    );
+
+    const invalid = await call("docs_compile", { outputRoots: { mapped: "vendor/absent" } }, root);
+    assert.equal(invalid.ok, false);
+    assert.equal(invalid.error.kind, "invalid-argument");
+
+    const plain = await call("docs_compile", {}, root);
+    assert.equal(plain.ok, true);
+    assert.ok(plain.files.some((file) => file.path === "docs/mapped.md"), "the stored path is unchanged");
+  });
 } finally {
   for (const result of results) {
     console.log(

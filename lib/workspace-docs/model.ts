@@ -208,6 +208,15 @@ export interface CompileResult {
   files: { path: string; content: string }[];
 }
 
+/**
+ * Compilation options. `outputRoots` binds a document id to a canonical
+ * workspace-relative directory, so the document compiles at `<root>/<output-path>`
+ * instead of its stored path (D-20, REQ-COMP-7).
+ */
+export interface CompileOptions {
+  outputRoots?: Record<string, string>;
+}
+
 export type PublishAction = "written" | "skipped" | "adopted" | "blocked" | "failed";
 
 export interface PublishOutcome {
@@ -233,6 +242,8 @@ export interface PublishOptions {
   afterReplace?: (path: string) => void;
   /** Explicit resolutions applied before recovery and ordinary publication (D-17). */
   reconcile?: ReconcileEntry[];
+  /** Effective-path binding applied to this publication (D-20, REQ-COMP-7). */
+  outputRoots?: Record<string, string>;
 }
 
 export interface PublishResult {

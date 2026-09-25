@@ -12,6 +12,8 @@
 //   AC-18  grammar parse/serialize round-trip without a model
 //   AC-31..AC-36  publication: external-edit and first-publication handling,
 //                  per-file failure, recovery, and retry
+//   AC-77..AC-84  project-relative output roots: effective paths, publication,
+//                  the guard, and reconciliation
 //
 // Runs with plain Node, without Pi and without a model. `js-toml` resolves
 // from the repo's own node_modules. Each check uses its own temporary
@@ -23,6 +25,7 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const core = await import(new URL("../lib/workspace-docs/index.ts", import.meta.url));
+const guard = await import(new URL("../lib/workspace-docs/guard.ts", import.meta.url));
 
 const scratch = mkdtempSync(join(tmpdir(), "pi-workspace-docs-"));
 const results = [];
@@ -2990,6 +2993,190 @@ try {
     assert.equal(inserted.status, "ok");
     assert.ok(inserted.body.includes("A. B.\nC. D."), "the caller bytes are verbatim");
     assert.equal(core.applyProseInsert(EDIT_BODY, "x", { after: "nope" }).status, "not-found");
+  });
+
+  // Project-relative output roots (D-20, REQ-COMP-7/REQ-COMP-8): one workspace
+  // publishes a document into a project checkout, keyed on an effective path.
+  const rootDir = (name, relative) => {
+    const path = join(scratch, name, relative);
+    mkdirSync(path, { recursive: true });
+    return path;
+  };
+
+  await check("AC-77", "a mapped document renders at its effective path and an unmapped one is unchanged", () => {
+    const ws = workspace("ac77");
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    ws.createDocument({ id: "other", title: "Other", type: "specification" });
+    rootDir("ac77", "vendor/out");
+
+    const paths = ws.compile({ outputRoots: { mapped: "vendor/out" } }).files.map((file) => file.path);
+    assert.ok(paths.includes("vendor/out/docs/mapped.md"), "the mapped document uses the effective path");
+    assert.ok(!paths.includes("docs/mapped.md"), "the stored path is not produced");
+    assert.ok(paths.includes(".pi/workspace-docs/out/other.md"), "the unmapped document keeps its default path");
+    ws.close();
+  });
+
+  await check("AC-78", "generated links and the index resolve to effective paths", () => {
+    const ws = workspace("ac78");
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    ws.createDocument({ id: "referrer", title: "Referrer", type: "specification" });
+    rootDir("ac78", "vendor/out");
+
+    const link = [
+      "```docs-link",
+      'from = "referrer"',
+      'to = "mapped"',
+      'type = "references"',
+      "```",
+      "",
+    ].join("\n");
+    const candidate = core.candidateWithBody(ws.checkout("referrer").text, link);
+    assert.equal(ws.importCandidate(candidate, ws.previewImport(candidate).token).status, "committed");
+
+    const files = ws.compile({ outputRoots: { mapped: "vendor/out" } }).files;
+    const index = files.find((file) => file.path === ".pi/workspace-docs/index.md").content;
+    const referrer = files.find((file) => file.path === ".pi/workspace-docs/out/referrer.md").content;
+    assert.ok(index.includes("../../vendor/out/docs/mapped.md"), "the index links to the effective path");
+    assert.ok(referrer.includes("../../../vendor/out/docs/mapped.md"), "the document link targets the effective path");
+    assert.ok(!index.includes("](docs/mapped.md)"), "the stored path is not linked");
+    ws.close();
+  });
+
+  await check("AC-79", "a mapped document without an explicit output-path is rejected", () => {
+    const ws = workspace("ac79");
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification" });
+    rootDir("ac79", "vendor/out");
+
+    assert.throws(() => ws.compile({ outputRoots: { mapped: "vendor/out" } }), "compile refuses the mapping");
+    assert.ok(
+      ws.outputRootDiagnostics({ mapped: "vendor/out" }).some((diagnostic) => diagnostic.severity === "block"),
+      "the mapping is rejected",
+    );
+    ws.close();
+  });
+
+  await check("AC-80", "an invalid output root is rejected before any output is written", () => {
+    const ws = workspace("ac80");
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    rootDir("ac80", "vendor/out");
+
+    for (const roots of [
+      { unknown: "vendor/out" },
+      { mapped: "/tmp/out" },
+      { mapped: "vendor/../out" },
+      { mapped: "vendor/absent" },
+      { mapped: ".pi/workspace-docs" },
+    ]) {
+      assert.throws(() => ws.compile({ outputRoots: roots }), `compile refuses: ${JSON.stringify(roots)}`);
+      assert.ok(
+        ws.outputRootDiagnostics(roots).some((diagnostic) => diagnostic.severity === "block"),
+        `the root is blocked: ${JSON.stringify(roots)}`,
+      );
+    }
+    assert.ok(!existsSync(join(scratch, "ac80", "vendor/absent")), "no directory is created");
+    ws.close();
+  });
+
+  await check("AC-81", "a reserved or colliding effective path is rejected", () => {
+    const reserved = workspace("ac81");
+    reserved.createDocument({
+      id: "mapped",
+      title: "Mapped",
+      type: "specification",
+      outputPath: "workspace-docs/index.md",
+    });
+    rootDir("ac81", ".pi");
+    assert.throws(() => reserved.compile({ outputRoots: { mapped: ".pi" } }), "compile refuses a reserved path");
+    assert.ok(
+      reserved
+        .outputRootDiagnostics({ mapped: ".pi" })
+        .some((diagnostic) => diagnostic.code === "output-path-collision"),
+      "a reserved effective path is rejected",
+    );
+    reserved.close();
+
+    const colliding = workspace("ac81b");
+    colliding.createDocument({ id: "one", title: "One", type: "specification", outputPath: "b/c.md" });
+    colliding.createDocument({ id: "two", title: "Two", type: "specification", outputPath: "c.md" });
+    rootDir("ac81b", "a/b");
+    assert.throws(
+      () => colliding.compile({ outputRoots: { one: "a", two: "a/b" } }),
+      "compile refuses colliding effective paths",
+    );
+    colliding.close();
+  });
+
+  await check("AC-82", "publication writes, records, and guards the effective path", () => {
+    const name = "ac82";
+    const ws = workspace(name);
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    const effective = join(rootDir(name, "vendor/out/docs"), "mapped.md");
+
+    const result = ws.publish({ outputRoots: { mapped: "vendor/out" } });
+    assert.equal(result.outcomes.find((entry) => entry.path === "vendor/out/docs/mapped.md")?.action, "written");
+    assert.ok(existsSync(effective), "the effective file is written");
+    assert.ok(!existsSync(join(scratch, name, "docs/mapped.md")), "the stored path is not created");
+
+    const recorded = guard.recordedOutputs(join(scratch, name));
+    assert.ok(recorded.includes("vendor/out/docs/mapped.md"), "the effective path is recorded");
+    assert.ok(!recorded.includes("docs/mapped.md"), "the stored path is not recorded");
+    assert.ok(
+      guard.isPublicationOutput(join(scratch, name), "vendor/out/docs/mapped.md", recorded),
+      "the guard blocks the effective output",
+    );
+    ws.close();
+  });
+
+  await check("AC-83", "switching roots keeps records, adopts identical bytes, and skips unchanged paths", () => {
+    const name = "ac83";
+    const ws = workspace(name);
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    rootDir(name, "a/out/docs");
+    const bDir = rootDir(name, "b/out/docs");
+
+    const first = ws.publish({ outputRoots: { mapped: "a/out" } });
+    assert.equal(first.outcomes.find((entry) => entry.path === "a/out/docs/mapped.md")?.action, "written");
+    const rendered = readFileSync(join(scratch, name, "a/out/docs/mapped.md"), "utf8");
+    const bPath = join(bDir, "mapped.md");
+    writeFileSync(bPath, rendered);
+    const inode = statSync(bPath).ino;
+
+    const second = ws.publish({ outputRoots: { mapped: "b/out" } });
+    assert.equal(second.outcomes.find((entry) => entry.path === "b/out/docs/mapped.md")?.action, "adopted");
+    assert.equal(statSync(bPath).ino, inode, "adoption does not rewrite the file");
+    const recorded = guard.recordedOutputs(join(scratch, name));
+    assert.ok(recorded.includes("a/out/docs/mapped.md"), "the first root's record is retained");
+    assert.ok(recorded.includes("b/out/docs/mapped.md"), "the second root's record is added");
+
+    const third = ws.publish({ outputRoots: { mapped: "a/out" } });
+    assert.equal(third.outcomes.find((entry) => entry.path === "a/out/docs/mapped.md")?.action, "skipped");
+    ws.close();
+  });
+
+  await check("AC-84", "reconciliation eligibility uses the effective path", () => {
+    const name = "ac84";
+    const ws = workspace(name);
+    ws.createDocument({ id: "mapped", title: "Mapped", type: "specification", outputPath: "docs/mapped.md" });
+    const effective = join(rootDir(name, "vendor/out/docs"), "mapped.md");
+    ws.publish({ outputRoots: { mapped: "vendor/out" } });
+    writeFileSync(effective, "external edit\n");
+
+    const blocked = ws.publish({ outputRoots: { mapped: "vendor/out" } });
+    assert.equal(blocked.outcomes.find((entry) => entry.path === "vendor/out/docs/mapped.md")?.code, "external-edit");
+
+    const stored = ws.publish({
+      outputRoots: { mapped: "vendor/out" },
+      reconcile: [{ path: "docs/mapped.md", action: "replace" }],
+    });
+    assert.equal(stored.outcomes.find((entry) => entry.path === "docs/mapped.md")?.code, "reconcile-ineligible");
+
+    const replaced = ws.publish({
+      outputRoots: { mapped: "vendor/out" },
+      reconcile: [{ path: "vendor/out/docs/mapped.md", action: "replace" }],
+    });
+    assert.equal(replaced.outcomes.find((entry) => entry.path === "vendor/out/docs/mapped.md")?.code, "replace");
+    assert.notEqual(readFileSync(effective, "utf8"), "external edit\n", "the effective path is rewritten");
+    ws.close();
   });
 } finally {
   for (const result of results) {

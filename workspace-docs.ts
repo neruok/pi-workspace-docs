@@ -1076,6 +1076,11 @@ export default function workspaceDocs(pi: ExtensionAPI): void {
     description: "Render the workspace; publish only when publish is true, and never claim partial success.",
     parameters: Type.Object({
       publish: Type.Optional(Type.Boolean({ description: "Write outputs; defaults to false" })),
+      outputRoots: Type.Optional(
+        Type.Record(Type.String(), Type.String(), {
+          description: "Document id to canonical workspace-relative output root (D-20)",
+        }),
+      ),
       reconcile: Type.Optional(
         Type.Array(
           Type.Object({
@@ -1089,12 +1094,20 @@ export default function workspaceDocs(pi: ExtensionAPI): void {
     execute(_id, params, _signal, _onUpdate, ctx) {
       return run(() =>
         withWorkspace(ctx.cwd, (workspace) => {
-          const compiled = workspace.compile();
+          const rootDiagnostics = workspace.outputRootDiagnostics(params.outputRoots);
+          if (rootDiagnostics.some((diagnostic) => diagnostic.severity === "block")) {
+            return fail(
+              "invalid-argument",
+              rootDiagnostics.map((diagnostic) => diagnostic.message).join("; "),
+              { diagnostics: rootDiagnostics },
+            );
+          }
+          const compiled = workspace.compile({ outputRoots: params.outputRoots });
           const files = compiled.files.map(fileSummary);
           if (params.publish !== true) {
             return ok({ storeRevision: compiled.storeRevision, files });
           }
-          const result = workspace.publish({ reconcile: params.reconcile });
+          const result = workspace.publish({ outputRoots: params.outputRoots, reconcile: params.reconcile });
           const complete =
             result.diagnostics.every((diagnostic) => diagnostic.severity !== "block") &&
             result.outcomes.every((outcome) => outcome.action !== "blocked" && outcome.action !== "failed");
